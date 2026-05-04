@@ -1,0 +1,22 @@
+{
+  "name": "jsbb",
+  "version": "0.1.0",
+  "description": "Java Spring Boot Bank CLI — scaffolds compliance-event-logger services (AFASA pattern)",
+  "type": "module",
+  "main": "bin/jsbb.js",
+  "bin": {
+    "jsbb": "bin/jsbb.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node bin/jsbb.js"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.0",
+    "commander": "^14.0.0",
+    "ejs": "^3.1.10",
+    "fs-extra": "^11.3.0"
+  }
+}

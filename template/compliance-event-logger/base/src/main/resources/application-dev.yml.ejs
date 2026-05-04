@@ -1,0 +1,11 @@
+# Dev environment overrides
+spring:
+  datasource:
+    url: jdbc:sqlserver://${DB_SERVER:dev-sql.eastwest.local}:1433;databaseName=AFASA;encrypt=true;trustServerCertificate=true
+
+logging:
+  level:
+    <%= packageName %>: DEBUG
+
+eapi:
+  base-url: ${EAPI_URL:https://dev-eapi.eastwest.local/api}

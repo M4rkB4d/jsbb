@@ -1,0 +1,11 @@
+# UAT environment overrides
+spring:
+  datasource:
+    url: jdbc:sqlserver://${DB_SERVER:uat-sql.eastwest.local}:1433;databaseName=AFASA;encrypt=true;trustServerCertificate=true
+
+logging:
+  level:
+    <%= packageName %>: INFO
+
+eapi:
+  base-url: ${EAPI_URL:https://uat-eapi.eastwest.local/api}

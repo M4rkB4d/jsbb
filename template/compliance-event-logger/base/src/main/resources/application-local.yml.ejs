@@ -1,0 +1,14 @@
+# Local development overrides
+spring:
+  datasource:
+    url: jdbc:sqlserver://localhost:1433;databaseName=AFASA;encrypt=true;trustServerCertificate=true
+    username: sa
+    password: ${DB_PASSWORD:AfasaTest2026!}
+
+logging:
+  level:
+    <%= packageName %>: TRACE
+    org.springframework.jdbc.core.JdbcTemplate: DEBUG
+
+eapi:
+  base-url: http://localhost:8081/eapi-mock

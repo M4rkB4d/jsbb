@@ -1,0 +1,39 @@
+{
+  "name": "compliance-event-logger",
+  "displayName": "Compliance Event Logger (AFASA pattern)",
+  "description": "Spring Boot 4.0.5 + Java 21 service for logging compliance events from an upstream service. Includes Flyway migrations (v2.3.8 schema), virtual threads, ShedLock, Resilience4j, Micrometer, OpenAPI, structured Logback, and 4-environment config.",
+  "runtime": "java",
+  "variables": {
+    "groupId": {
+      "prompt": "Group ID (reverse-domain, e.g., com.eastwest)",
+      "type": "text",
+      "default": "com.eastwest"
+    },
+    "projectName": {
+      "prompt": "Project name (kebab-case, e.g., afasa-engine)",
+      "type": "text",
+      "default": "afasa-engine"
+    },
+    "javaVersion": {
+      "prompt": "Java version",
+      "type": "select",
+      "choices": ["21", "17"],
+      "default": "21"
+    },
+    "springBootVersion": {
+      "prompt": "Spring Boot version",
+      "type": "text",
+      "default": "4.0.5"
+    },
+    "dbServerName": {
+      "prompt": "Default DB server name (override per environment)",
+      "type": "text",
+      "default": "localhost"
+    },
+    "eapiBaseUrl": {
+      "prompt": "Default EAPI base URL (override per environment)",
+      "type": "text",
+      "default": "http://eapi-internal/api"
+    }
+  }
+}

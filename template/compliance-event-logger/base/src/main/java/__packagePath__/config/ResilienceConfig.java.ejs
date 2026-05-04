@@ -1,0 +1,16 @@
+package <%= packageName %>.config;
+
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * Resilience4j is configured declaratively via application.yml's
+ * 'resilience4j.retry' / 'resilience4j.circuitbreaker' / 'resilience4j.timelimiter'
+ * sections. Annotations like @Retry, @CircuitBreaker, @TimeLimiter on
+ * EAPI-client methods reference those configurations by name.
+ *
+ * This class exists as a placeholder for any programmatic policy overrides
+ * needed in the future (e.g., per-environment dynamic tuning).
+ */
+@Configuration
+public class ResilienceConfig {
+}

@@ -1,0 +1,20 @@
+# Production environment overrides
+spring:
+  datasource:
+    url: jdbc:sqlserver://${DB_SERVER}:1433;databaseName=AFASA;encrypt=true
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+
+management:
+  endpoint:
+    health:
+      show-details: never  # do not expose details in prod
+
+logging:
+  level:
+    root: WARN
+    <%= packageName %>: INFO
+
+eapi:
+  base-url: ${EAPI_URL}  # mandatory env var in prod
