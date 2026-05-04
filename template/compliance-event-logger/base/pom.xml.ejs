@@ -154,6 +154,15 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!--
+              Reference failsafe so its bindings from spring-boot-starter-parent's
+              pluginManagement (integration-test + verify goals) actually fire on
+              `mvn verify`. Without this, *IT.java tests are silently skipped.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
         </plugins>
     </build>
 </project>
