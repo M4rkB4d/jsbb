@@ -25,7 +25,12 @@
         <shedlock.version>5.16.0</shedlock.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <springdoc.version>2.6.0</springdoc.version>
-        <flyway.version>10.20.0</flyway.version>
+        <!--
+          Flyway version is managed by spring-boot-dependencies. Do NOT pin —
+          pinning to Flyway 10.x against Spring Boot 4 silently disables
+          autoconfig (incompatible internal API), which leaves migrations
+          un-applied and is hard to diagnose.
+        -->
     </properties>
 
     <dependencies>
@@ -64,16 +69,21 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Flyway migrations -->
+        <!--
+          Flyway migrations.
+          Spring Boot 4 relocated FlywayAutoConfiguration out of spring-boot-autoconfigure
+          into its own artifact (spring-boot-flyway). Without it on the classpath, having
+          only flyway-core means autoconfig never fires and migrations are silently skipped.
+          spring-boot-flyway pulls flyway-core transitively; we only need to add flyway-sqlserver
+          for SQL Server-specific support.
+        -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-            <version>${flyway.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-sqlserver</artifactId>
-            <version>${flyway.version}</version>
         </dependency>
 
         <!-- ShedLock for distributed @Scheduled coordination -->
@@ -121,12 +131,20 @@
         </dependency>
         <!--
           Spring Boot 4 split TestRestTemplate out of spring-boot-test into its own
-          artifact (org.springframework.boot:spring-boot-resttestclient). It is no
-          longer transitive via spring-boot-starter-test.
+          artifact (spring-boot-resttestclient), and split RestTemplateBuilder out
+          into spring-boot-restclient. Both are needed for @AutoConfigureTestRestTemplate.
+          The Maven-published POM of spring-boot-resttestclient omits its dependency
+          on spring-boot-restclient (it's in the Gradle metadata only) so we add it
+          explicitly.
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-resttestclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-restclient</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

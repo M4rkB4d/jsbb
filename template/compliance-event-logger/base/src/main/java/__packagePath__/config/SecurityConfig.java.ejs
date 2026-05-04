@@ -2,6 +2,7 @@ package <%= packageName %>.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -10,10 +11,11 @@ import org.springframework.security.web.SecurityFilterChain;
  * Security stub — locks down the API surface; production deployments will
  * wire OAuth2 Resource Server (JWT) or API-key validation here.
  *
- * For dev/local profiles, the API can be exposed without auth via the
- * 'permitAll-dev' profile activation (see application-dev.yml).
+ * Disabled under the "test" profile so IT runs can exercise the controllers
+ * without standing up an OAuth2 issuer.
  */
 @Configuration
+@Profile("!test")
 public class SecurityConfig {
 
     @Bean
