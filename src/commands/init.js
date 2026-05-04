@@ -16,6 +16,14 @@ export async function initCommand(opts) {
   const dryRun = !!opts.dryRun;
   const skipGit = opts.git === false;
   const skipInstall = opts.install === false;
+  const nonInteractive = !!opts.nonInteractive;
+  const autoYes = !!opts.yes || nonInteractive;
+
+  // Collect CLI overrides — flags that match prompt variable names
+  const cliOverrides = {};
+  for (const key of ['groupId', 'projectName', 'javaVersion', 'springBootVersion', 'dbServerName', 'eapiBaseUrl']) {
+    if (opts[key] !== undefined) cliOverrides[key] = opts[key];
+  }
 
   ui.intro('jsbb init');
 
@@ -28,7 +36,7 @@ export async function initCommand(opts) {
   if (stray.length > 0) {
     ui.note(stray.slice(0, 10).join(', ') + (stray.length > 10 ? `, ...(${stray.length - 10} more)` : ''),
       'Existing files detected (not a typical "init" baseline)');
-    await confirmProceed('Continue anyway? Orphan cleanup will run after generation');
+    await confirmProceed('Continue anyway? Orphan cleanup will run after generation', autoYes);
   }
 
   const template = getTemplate(VARIANT_ID);
@@ -37,10 +45,10 @@ export async function initCommand(opts) {
     process.exit(1);
   }
 
-  const vars = await collectVariables(template);
+  const vars = await collectVariables(template, cliOverrides, nonInteractive);
   previewVariables(vars);
 
-  await confirmProceed('Proceed with scaffolding?');
+  await confirmProceed('Proceed with scaffolding?', autoYes);
 
   // Render
   const baseDir = resolve(template.path, 'base');
@@ -59,7 +67,7 @@ export async function initCommand(opts) {
   if (orphans.length > 0) {
     ui.note(orphans.slice(0, 10).join('\n') + (orphans.length > 10 ? `\n...(${orphans.length - 10} more)` : ''),
       `${orphans.length} orphan file(s) detected (would be removed)`);
-    const removeOk = await confirmProceed('Remove orphans?');
+    const removeOk = await confirmProceed('Remove orphans?', autoYes);
     if (removeOk) removeOrphans(outputDir, orphans);
   }
 

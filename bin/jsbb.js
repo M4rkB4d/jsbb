@@ -18,6 +18,14 @@ program
   .option('--dry-run', 'Show what would be generated without writing files', false)
   .option('--no-git', 'Skip git init/commit')
   .option('--no-install', 'Skip mvnw validate after scaffold')
+  .option('--non-interactive', 'Use defaults + CLI overrides without prompting (CI-friendly)', false)
+  .option('--yes', 'Auto-confirm all prompts (use with --non-interactive)', false)
+  .option('--groupId <value>', 'Override prompt: groupId (reverse-domain)')
+  .option('--projectName <value>', 'Override prompt: projectName (kebab-case)')
+  .option('--javaVersion <value>', 'Override prompt: javaVersion (21|17)')
+  .option('--springBootVersion <value>', 'Override prompt: springBootVersion')
+  .option('--dbServerName <value>', 'Override prompt: dbServerName')
+  .option('--eapiBaseUrl <value>', 'Override prompt: eapiBaseUrl')
   .action(initCommand);
 
 program

@@ -32,8 +32,11 @@ function toPascalCase(s) {
 /**
  * Collect template variables interactively, then derive Java-specific ones.
  * Pattern lifted from forge-cli/src/core/prompter.js:70-75 with hardening.
+ *
+ * If `cliOverrides` is provided (from --groupId=... etc. flags), those values
+ * are used directly without prompting. Validation still runs.
  */
-export async function collectVariables(template) {
+export async function collectVariables(template, cliOverrides = {}, nonInteractive = false) {
   p.intro(`jsbb — ${template.meta.displayName || template.id}`);
 
   const vars = {};
@@ -41,6 +44,30 @@ export async function collectVariables(template) {
 
   for (const [key, def] of Object.entries(definitions)) {
     if (def.source === 'derived') continue; // computed below
+
+    // CLI override takes precedence; validate then use
+    if (cliOverrides[key] !== undefined) {
+      const validator = key === 'groupId' ? validateGroupId : (key === 'projectName' ? validateProjectName : null);
+      if (validator) {
+        const err = validator(cliOverrides[key]);
+        if (err) {
+          p.cancel(`Invalid --${key}: ${err}`);
+          process.exit(1);
+        }
+      }
+      vars[key] = cliOverrides[key];
+      continue;
+    }
+
+    if (nonInteractive) {
+      // Use the default; this requires defaults to be set for non-interactive mode
+      if (def.default === undefined) {
+        p.cancel(`Non-interactive mode but --${key} not supplied and no default set`);
+        process.exit(1);
+      }
+      vars[key] = def.default;
+      continue;
+    }
 
     let value;
     if (def.type === 'select') {
@@ -87,7 +114,8 @@ export function previewVariables(vars) {
   );
 }
 
-export async function confirmProceed(message) {
+export async function confirmProceed(message, autoYes = false) {
+  if (autoYes) return true;
   const ok = await p.confirm({ message });
   if (p.isCancel(ok) || !ok) {
     p.cancel('Cancelled');
