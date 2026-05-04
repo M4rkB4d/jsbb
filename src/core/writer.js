@@ -1,10 +1,16 @@
 // writer.js — file writing + git + maven
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, chmodSync } from 'fs';
 import { dirname, join } from 'path';
 import { execSync } from 'child_process';
 
+// Files that need the executable bit set after write (POSIX only — no-op on Windows).
+// The Maven wrapper shell script is the canonical case; without 0755 it can't be
+// invoked as `./mvnw` on macOS/Linux.
+const EXECUTABLE_BASENAMES = new Set(['mvnw', 'gradlew']);
+
 /**
  * Write a list of { destRelPath, content } to outputDir.
+ * On POSIX, chmod 0755 any file whose basename matches EXECUTABLE_BASENAMES.
  */
 export function writeFiles(outputDir, files) {
   let written = 0;
@@ -13,6 +19,14 @@ export function writeFiles(outputDir, files) {
     const parent = dirname(fullPath);
     if (!existsSync(parent)) mkdirSync(parent, { recursive: true });
     writeFileSync(fullPath, content);
+
+    if (process.platform !== 'win32') {
+      const basename = destRelPath.split(/[\\/]/).pop();
+      if (EXECUTABLE_BASENAMES.has(basename)) {
+        try { chmodSync(fullPath, 0o755); } catch { /* best-effort */ }
+      }
+    }
+
     written += 1;
   }
   return written;
