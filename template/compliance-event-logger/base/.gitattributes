@@ -1,0 +1,16 @@
+# Default: let Git handle text auto-detection
+* text=auto
+
+# Maven wrapper: shell script must stay LF on every platform (POSIX bash chokes on CRLF)
+mvnw text eol=lf
+
+# Windows batch wrappers must stay CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# SQL migrations: keep LF for cross-platform diff stability
+*.sql text eol=lf
+
+# Binary safety
+*.jar binary
+*.zip binary
