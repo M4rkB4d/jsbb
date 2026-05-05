@@ -6,6 +6,13 @@ spring:
       maximum-pool-size: 50
       minimum-idle: 10
 
+  # OAuth2 issuer URI is mandatory in prod — no default. App refuses to start without it.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI}
+
 management:
   endpoint:
     health:

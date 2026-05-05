@@ -10,6 +10,16 @@ spring:
     virtual:
       enabled: true
 
+  # OAuth2 Resource Server (JWT bearer tokens). Production SecurityConfig
+  # requires this in non-test/non-local profiles. Set via env:
+  #   OAUTH2_ISSUER_URI=https://your-issuer/realms/<%= projectName %>
+  # No default — the app must fail to start if a deployment forgets it.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:}
+
   datasource:
     url: jdbc:sqlserver://<%= dbServerName %>:1433;databaseName=AFASA;encrypt=true;trustServerCertificate=true
     username: ${DB_USERNAME:sa}

@@ -3,16 +3,28 @@ package <%= packageName %>.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Security stub — locks down the API surface; production deployments will
- * wire OAuth2 Resource Server (JWT) or API-key validation here.
+ * Production security: OAuth2 Resource Server with JWT bearer tokens.
  *
- * Disabled under the "test" profile so IT runs can exercise the controllers
- * without standing up an OAuth2 issuer.
+ * The issuer URI is mandatory in non-test/non-local profiles. Set via:
+ *   spring.security.oauth2.resourceserver.jwt.issuer-uri = ${OAUTH2_ISSUER_URI}
+ * and the env var must be supplied by the deployment platform. App will fail
+ * to start if it is missing — that is intentional.
+ *
+ * Scope authorization (working assumption — confirm with identity team):
+ *   - SCOPE_<%= projectName %>.write : POST /afasa/log/*
+ *   - SCOPE_<%= projectName %>.lift  : PATCH /afasa/log/*
+ *   - actuator/health, actuator/info : permitAll
+ *
+ * Disabled under "test" and "local" profiles — those publish their own
+ * permit-all SecurityFilterChain (TestSecurityConfig, LocalSecurityConfig).
  */
 @Configuration
 @Profile("!test & !local")
@@ -25,11 +37,23 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                .requestMatchers(HttpMethod.POST,  "/afasa/log/**").hasAuthority("SCOPE_<%= projectName %>.write")
+                .requestMatchers(HttpMethod.PATCH, "/afasa/log/**").hasAuthority("SCOPE_<%= projectName %>.lift")
                 .anyRequest().authenticated()
             )
-            // TODO: wire .oauth2ResourceServer(...) once OAuth2 issuer URI is known
-            .httpBasic(b -> {});  // stub — replace with JWT/OAuth2 in production
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter()))
+            );
         return http.build();
+    }
+
+    private static JwtAuthenticationConverter jwtAuthConverter() {
+        JwtGrantedAuthoritiesConverter scopes = new JwtGrantedAuthoritiesConverter();
+        scopes.setAuthorityPrefix("SCOPE_");
+        scopes.setAuthoritiesClaimName("scope");
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(scopes);
+        return converter;
     }
 }
