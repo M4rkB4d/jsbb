@@ -66,8 +66,11 @@ Create three under Pipelines → Environments:
 
 ## 6. First deploy walkthrough
 
-1. **Push to `main`** — the dev pipeline runs: Checkstyle → Build + Sonar +
-   JaCoCo → Docker build + Trivy scan → Push to dev ACR → Helm deploy.
+1. **Push to `main`** — the dev pipeline runs: Maven build + JaCoCo → Docker
+   build & push to dev ACR → Helm deploy. Quality gates (Checkstyle / Sonar /
+   Trivy) are intentionally omitted; wire them in once your bank's centralized
+   tooling is set up. The stg/prod pipeline files keep the Trivy pre-promote
+   scan ready for when you turn them on.
 2. Note the `imageTag` from the build (`1.0.0-build.{BuildId}`).
 3. Run `<%= projectName %>-deploy-stg` with that tag.
 4. Verify in staging, then run `<%= projectName %>-deploy-prod`. Approval gate
