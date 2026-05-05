@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven settings template. Upload the *real* settings.xml as a Secure File in
+  Azure DevOps Library (Pipelines → Library → Secure Files) — the pipeline
+  pulls it via DownloadSecureFile@1. Do NOT commit the real one.
+
+  Adjust mirrorOf / repository URLs to match your bank's internal Nexus / Artifactory.
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+
+  <servers>
+    <server>
+      <id>internal-nexus</id>
+      <username>${env.NEXUS_USERNAME}</username>
+      <password>${env.NEXUS_PASSWORD}</password>
+    </server>
+  </servers>
+
+  <mirrors>
+    <mirror>
+      <id>internal-nexus</id>
+      <name>Internal Maven Mirror</name>
+      <url>https://nexus.internal/repository/maven-public/</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+  </mirrors>
+
+  <profiles>
+    <profile>
+      <id>default</id>
+      <repositories>
+        <repository>
+          <id>internal-nexus</id>
+          <url>https://nexus.internal/repository/maven-public/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>default</activeProfile>
+  </activeProfiles>
+
+</settings>

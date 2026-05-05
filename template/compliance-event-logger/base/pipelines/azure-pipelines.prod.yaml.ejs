@@ -1,0 +1,127 @@
+# <%= className %> — production deploy. Manual trigger + approval gate on the
+# <%= projectName %>-production environment. Promotes from staging ACR to prod ACR.
+
+parameters:
+  - name: imageTag
+    type: string
+    displayName: 'Image Tag from Staging Build'
+    default: ''
+
+trigger: none
+
+pool: $(pool_name)
+
+variables:
+  - group: ServiceConnections
+  - group: ApplicationSecrets
+
+  - name: imageName
+    value: '<%= projectName %>'
+  - name: namespace
+    value: '<%= projectName %>'
+
+  - name: prod_pool_name
+    value: 'DXPProd'
+
+  - name: deployImageTag
+    value: ${{ parameters.imageTag }}
+
+stages:
+  - stage: TagToProduction
+    displayName: Tag to Production
+    jobs:
+    - deployment: Tag
+      displayName: Tag
+      pool:
+        name: $(prod_pool_name)
+        vmImage: ubuntu-latest
+      environment: <%= projectName %>-production
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - checkout: self
+                fetchDepth: 0
+
+              - task: Docker@2
+                displayName: Login to Staging registry
+                inputs:
+                  command: login
+                  containerRegistry: $(docker_registry_servcon_stg)
+
+              - task: Bash@3
+                displayName: Pull image from Staging registry
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    docker pull $(docker_registry_url_stg)/$(imageName):$(deployImageTag)
+
+              - task: Bash@3
+                displayName: Tag image for Production registry
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    docker tag $(docker_registry_url_stg)/$(imageName):$(deployImageTag) \
+                      $(docker_registry_url_prod)/$(imageName):$(deployImageTag)
+                    docker tag $(docker_registry_url_stg)/$(imageName):$(deployImageTag) \
+                      $(docker_registry_url_prod)/$(imageName):production
+
+              - task: Docker@2
+                displayName: Login to Production registry
+                inputs:
+                  command: login
+                  containerRegistry: $(docker_registry_servcon_prod)
+
+              - task: Bash@3
+                displayName: Push images to Production registry
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    docker push $(docker_registry_url_prod)/$(imageName):$(deployImageTag)
+                    docker push $(docker_registry_url_prod)/$(imageName):production
+
+  - stage: DeployProduction
+    displayName: Deploy to Kubernetes (Production)
+    dependsOn: TagToProduction
+    condition: succeeded('TagToProduction')
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy (Production)
+        pool:
+          name: $(prod_pool_name)
+          vmImage: ubuntu-latest
+        environment: <%= projectName %>-production
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: ReplaceTokens@3
+                  displayName: 'Replace tokens in manifest'
+                  inputs:
+                    targetFiles: '$(System.DefaultWorkingDirectory)/helm/values/production/app.yaml'
+                    encoding: 'auto'
+                    tokenRegex: '\\#\\{(.+?)\\}\\#'
+                    tokenPrefix: '#{'
+                    tokenSuffix: '}#'
+
+                - task: HelmDeploy@0
+                  displayName: Deploy Helm Chart (Production)
+                  inputs:
+                    connectionType: 'Kubernetes Service Connection'
+                    kubernetesServiceEndpoint: $(kubernetes_servcon_prod)
+                    namespace: $(namespace)
+                    chartType: 'FilePath'
+                    chartPath: './helm'
+                    releaseName: '<%= projectName %>'
+                    command: 'upgrade'
+                    install: true
+                    arguments: >-
+                      --set image.tag="$(deployImageTag)"
+                      --values ./helm/values/production/specs.yaml
+                      --values ./helm/values/production/app.yaml
+                      --history-max=3
+                      --timeout=5m0s
+                      --wait
+                      --atomic

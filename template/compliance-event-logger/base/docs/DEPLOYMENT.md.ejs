@@ -1,0 +1,108 @@
+# <%= className %> — Deployment Onboarding (Azure DevOps + AKS)
+
+Step-by-step you walk through **once** when you import this repo into Azure DevOps.
+Everything bank-specific lives in Azure DevOps Library, Service Connections,
+or Key Vault — never in this repo.
+
+## 1. Confirm with the platform team (do this first)
+
+| Question | Why it matters | Where to ask |
+|---|---|---|
+| What namespace should `<%= projectName %>` deploy into? `<%= projectName %>` per-service, or shared division namespace? | Helm values reference it everywhere | DXP Platform / DevOps team |
+| What overrideFrontendPort can we use for the Application Gateway? | Currently using `6106` — confirm available | Networking team |
+| What is the OAuth2 issuer URI for this service's tier? | Azure AD tenant + client app | Identity / IAM team |
+| What is the actual EAPI base URL per environment? | `application-{env}.yml`'s `eapi.base-url` | EAPI integration team |
+
+## 2. Variable Groups in Azure DevOps Library
+
+Create or extend two Variable Groups:
+
+### `ServiceConnections` (non-secret refs)
+
+| Variable | Example value | What it is |
+|---|---|---|
+| `pool_name` | `Default` (non-prod), `DXPProd` (prod) | Azure DevOps agent pool |
+| `kubernetes_servcon_dev` | `aks-dev` | Kubernetes Service Connection name |
+| `kubernetes_servcon_stg` | `aks-stg` | same, staging |
+| `kubernetes_servcon_prod` | `aks-prod` | same, production |
+| `docker_registry_servcon_dev` | `acr-dxp-dev` | Docker registry Service Connection |
+| `docker_registry_servcon_stg` | `acr-dxp-staging` | same, staging |
+| `docker_registry_servcon_prod` | `acr-dxp-production` | same, production |
+| `docker_registry_url_dev` | `acrdxpdev.azurecr.io` | ACR FQDN |
+| `docker_registry_url_stg` | `acrdxpstaging.azurecr.io` | same, staging |
+| `docker_registry_url_prod` | `acrdxpproduction.azurecr.io` | same, production |
+
+### `ApplicationSecrets` (linked to Azure Key Vault)
+
+| Variable | What it stores |
+|---|---|
+| `<%= projectName %>_db_password_dev` | SQL Server password for `<%= projectName %>_dev_user` |
+| `<%= projectName %>_db_password_stg` | same, staging |
+| `<%= projectName %>_db_password_prod` | same, production |
+
+## 3. Secure Files
+
+Upload one file at Pipelines → Library → Secure Files:
+
+| File name | Source |
+|---|---|
+| `settings.xml` | Maven settings with internal Nexus credentials. See `settings.xml.example`. |
+
+## 4. Environments (approval gates)
+
+Create three under Pipelines → Environments:
+
+- `<%= projectName %>-development` — no approval (auto-deploy on main)
+- `<%= projectName %>-staging` — 1-approver gate
+- `<%= projectName %>-production` — 2-approver gate, prod release officer
+
+## 5. Import the pipelines
+
+| Pipeline name | YAML file | Trigger |
+|---|---|---|
+| `<%= projectName %>-build-dev` | `pipelines/azure-pipelines.yml` | Auto on push to `main` |
+| `<%= projectName %>-deploy-stg` | `pipelines/azure-pipelines.stg.yaml` | Manual; takes `imageTag` parameter |
+| `<%= projectName %>-deploy-prod` | `pipelines/azure-pipelines.prod.yaml` | Manual; approval gate |
+
+## 6. First deploy walkthrough
+
+1. **Push to `main`** — the dev pipeline runs: Checkstyle → Build + Sonar +
+   JaCoCo → Docker build + Trivy scan → Push to dev ACR → Helm deploy.
+2. Note the `imageTag` from the build (`1.0.0-build.{BuildId}`).
+3. Run `<%= projectName %>-deploy-stg` with that tag.
+4. Verify in staging, then run `<%= projectName %>-deploy-prod`. Approval gate
+   prompts; once granted, image promotes stg → prod and Helm upgrades.
+
+## 7. Common port-opening requests
+
+When the network team asks "which IP, which port?":
+
+| Port | Direction | Why |
+|---|---|---|
+| 1433 | egress | SQL Azure |
+| 443 | egress | HTTPS to EAPI / OAuth2 issuer |
+| 6106 | ingress (App Gateway → service) | matches `helm/values/*/specs.yaml`'s `overrideFrontendPort` |
+
+Phrase the request as: "`<%= projectName %>` is a new service deployed to AKS
+namespace `<%= projectName %>`. Please allow our pods to reach `<X>` on port
+`<Y>`." The network team handles the firewall change.
+
+## 8. Local development
+
+```bash
+docker run -d --name <%= projectName %>-sql -e ACCEPT_EULA=Y \
+  -e MSSQL_SA_PASSWORD='YourStrongPassword!' -p 1433:1433 \
+  mcr.microsoft.com/mssql/server:2022-latest
+
+./mvnw verify             # IT cases via Testcontainers
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+## 9. Rollback
+
+```bash
+helm --namespace <%= projectName %> history <%= projectName %>
+helm --namespace <%= projectName %> rollback <%= projectName %> <revision>
+```
+
+Or re-run the prod pipeline with a previous good `imageTag`.

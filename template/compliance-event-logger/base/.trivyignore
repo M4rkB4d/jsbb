@@ -1,0 +1,5 @@
+# Trivy ignore rules — list specific CVEs to suppress with justification.
+# Format: one CVE ID per line, optionally followed by a comment.
+# Reviewed and refreshed at every minor-version bump.
+
+# (none yet — keep clean)

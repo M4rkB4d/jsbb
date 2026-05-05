@@ -1,0 +1,53 @@
+package <%= packageName %>.api.filter;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.MDC;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.UUID;
+
+/**
+ * Pulls the {@code x-correlation-id} request header into the SLF4J MDC so every
+ * log line during the request carries it. If the header is missing, generates
+ * a fresh UUID and echoes it back in the response.
+ *
+ * Also captures the {@code User-Agent} into MDC.browserType for the JSON log
+ * pattern shared with the rest of the bank's services.
+ *
+ * Runs early in the filter chain — before Spring Security — so even auth-failure
+ * logs include the correlation id.
+ */
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class CorrelationIdFilter extends OncePerRequestFilter {
+
+    public static final String HEADER = "x-correlation-id";
+    public static final String MDC_KEY = "correlationId";
+    public static final String MDC_BROWSER = "browserType";
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+            throws ServletException, IOException {
+        String corr = req.getHeader(HEADER);
+        if (corr == null || corr.isBlank()) {
+            corr = UUID.randomUUID().toString();
+        }
+        String ua = req.getHeader("User-Agent");
+        try {
+            MDC.put(MDC_KEY, corr);
+            if (ua != null) MDC.put(MDC_BROWSER, ua);
+            res.setHeader(HEADER, corr);
+            chain.doFilter(req, res);
+        } finally {
+            MDC.remove(MDC_KEY);
+            MDC.remove(MDC_BROWSER);
+        }
+    }
+}

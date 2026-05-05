@@ -1,0 +1,26 @@
+# Spring config injected as SPRING_APPLICATION_JSON via the Helm secret.
+
+config:
+  server.port: 8181
+
+  app.environment: PRODUCTION
+
+  spring:
+    datasource:
+      url: jdbc:sqlserver://sql-dxp-production-apse-001.database.windows.net:1433;database=<%= projectName.toUpperCase() %>;encrypt=true
+      username: <%= projectName %>_prod_user
+      password: #{<%= projectName %>_db_password_prod}#
+    security.oauth2.resourceserver.jwt:
+      issuer-uri: https://sts.windows.net/014be975-9a3f-4161-87d9-e620e4a154fa/
+
+  eapi:
+    base-url: https://eapi.eastwest.com.ph/api
+    connect-timeout: 5s
+    read-timeout: 30s
+
+  logging.file:
+    name: logs/<%= projectName %>.log
+    max-size: 20MB
+    max-history: 30
+    total-size-cap: 300MB
+    clean-history-on-start: false

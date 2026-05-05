@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    appgw.ingress.kubernetes.io/use-private-ip: "{{ .Values.ingress.usePrivateIP }}"
+    appgw.ingress.kubernetes.io/override-frontend-port: "{{ .Values.ingress.overrideFrontendPort }}"
+    appgw.ingress.kubernetes.io/health-probe-path: "{{ .Values.ingress.healthProbePath }}"
+    appgw.ingress.kubernetes.io/health-probe-status-codes: "{{ .Values.ingress.healthProbeStatusCodes }}"
+    appgw.ingress.kubernetes.io/request-timeout: "{{ .Values.ingress.requestTimeout }}"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: {{ .Chart.Name }}-service
+                port:
+                  number: {{ .Values.service.port }}
+            pathType: Prefix

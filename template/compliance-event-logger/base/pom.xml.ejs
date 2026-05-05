@@ -25,6 +25,7 @@
         <shedlock.version>5.16.0</shedlock.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <springdoc.version>2.6.0</springdoc.version>
+        <checkstyle.skip>false</checkstyle.skip>
         <!--
           Flyway version is managed by spring-boot-dependencies. Do NOT pin —
           pinning to Flyway 10.x against Spring Boot 4 silently disables
@@ -172,14 +173,70 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+
             <!--
               Reference failsafe so its bindings from spring-boot-starter-parent's
               pluginManagement (integration-test + verify goals) actually fire on
               `mvn verify`. Without this, *IT.java tests are silently skipped.
+              Honors -DskipITs from CI when the agent can't run Docker.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+
+            <!--
+              JaCoCo — used by the Azure DevOps pipeline goals:
+                jacoco:prepare-agent install jacoco:report sonar:sonar
+              Report XML is consumed by SonarCloud (sonar.coverage.jacoco.xmlReportPaths).
+            -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*Application.class</exclude>
+                        <exclude>**/dto/**</exclude>
+                        <exclude>**/config/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!--
+              Checkstyle — pipeline runs `checkstyle:check` in its first stage and
+              `-Dcheckstyle.skip=true` in build/sonar stage to avoid double-running.
+              failOnViolation=false so first push doesn't fail before the bank's
+              shared style config lands. Replace sun_checks.xml with your config
+              once approved.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <configLocation>sun_checks.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>false</failsOnError>
+                    <failOnViolation>false</failOnViolation>
+                    <linkXRef>false</linkXRef>
+                    <skip>${checkstyle.skip}</skip>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -1,0 +1,142 @@
+# <%= className %> — staging deploy. Manual trigger; promotes a build from
+# dev ACR to staging ACR (re-tag, no rebuild), then upgrades the Helm release.
+
+parameters:
+  - name: imageTag
+    type: string
+    displayName: 'Image Tag from Dev Build'
+    default: 'latest'
+
+trigger: none
+
+pool: $(pool_name)
+
+variables:
+  - group: ServiceConnections
+  - group: ApplicationSecrets
+
+  - name: imageName
+    value: '<%= projectName %>'
+  - name: namespace
+    value: '<%= projectName %>'
+
+  - name: non_prod_pool_name
+    value: 'Default'
+
+  - name: deployImageTag
+    value: ${{ parameters.imageTag }}
+
+stages:
+  - stage: TagToStaging
+    displayName: Tag to Staging
+    jobs:
+    - deployment: Tag
+      displayName: Tag
+      pool:
+        name: $(non_prod_pool_name)
+        vmImage: ubuntu-latest
+      environment: <%= projectName %>-staging
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - checkout: self
+                fetchDepth: 0
+
+              - task: Docker@2
+                displayName: Login to Dev registry
+                inputs:
+                  command: login
+                  containerRegistry: $(docker_registry_servcon_dev)
+
+              - task: Bash@3
+                displayName: Pull image from Dev registry
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    docker pull $(docker_registry_url_dev)/$(imageName):$(deployImageTag)
+
+              - task: trivy@2
+                displayName: 'Run Trivy Scan'
+                inputs:
+                  method: 'docker'
+                  version: '0.55.2'
+                  type: 'image'
+                  target: '$(docker_registry_url_dev)/$(imageName):$(deployImageTag)'
+                  scanners: 'misconfig, secret, vuln'
+                  severities: 'UNKNOWN, LOW, MEDIUM, HIGH, CRITICAL'
+                  failOnSeverityThreshold: 'HIGH'
+                  ignoreUnfixed: true
+                  reports: 'table'
+                  timeout: '15m'
+                  ignoreFile: '.trivyignore'
+
+              - task: Bash@3
+                displayName: Tag image for Staging registry
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    docker tag $(docker_registry_url_dev)/$(imageName):$(deployImageTag) \
+                      $(docker_registry_url_stg)/$(imageName):$(deployImageTag)
+                    docker tag $(docker_registry_url_dev)/$(imageName):$(deployImageTag) \
+                      $(docker_registry_url_stg)/$(imageName):staging
+
+              - task: Docker@2
+                displayName: Login to Staging registry
+                inputs:
+                  command: login
+                  containerRegistry: $(docker_registry_servcon_stg)
+
+              - task: Bash@3
+                displayName: Push images to Staging registry
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    docker push $(docker_registry_url_stg)/$(imageName):$(deployImageTag)
+                    docker push $(docker_registry_url_stg)/$(imageName):staging
+
+  - stage: DeployStg
+    displayName: Deploy to Kubernetes (Staging)
+    dependsOn: TagToStaging
+    condition: succeeded('TagToStaging')
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy (Staging)
+        pool:
+          name: $(non_prod_pool_name)
+          vmImage: ubuntu-latest
+        environment: <%= projectName %>-staging
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: ReplaceTokens@3
+                  displayName: 'Replace tokens in manifest'
+                  inputs:
+                    targetFiles: '$(System.DefaultWorkingDirectory)/helm/values/staging/app.yaml'
+                    encoding: 'auto'
+                    tokenRegex: '\\#\\{(.+?)\\}\\#'
+                    tokenPrefix: '#{'
+                    tokenSuffix: '}#'
+
+                - task: HelmDeploy@0
+                  displayName: Deploy Helm Chart (Staging)
+                  inputs:
+                    connectionType: 'Kubernetes Service Connection'
+                    kubernetesServiceEndpoint: $(kubernetes_servcon_stg)
+                    namespace: $(namespace)
+                    chartType: 'FilePath'
+                    chartPath: './helm'
+                    releaseName: '<%= projectName %>'
+                    command: 'upgrade'
+                    install: true
+                    arguments: >-
+                      --set image.tag="$(deployImageTag)"
+                      --values ./helm/values/staging/specs.yaml
+                      --values ./helm/values/staging/app.yaml
+                      --history-max=3
+                      --timeout=5m0s
+                      --wait
+                      --atomic

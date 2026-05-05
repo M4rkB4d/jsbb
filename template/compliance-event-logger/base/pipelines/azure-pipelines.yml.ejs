@@ -1,0 +1,293 @@
+# <%= className %> — build, scan, and deploy to development on every commit to main.
+# Stg/prod deploys live in azure-pipelines.{stg,prod}.yaml (image promotion across ACRs).
+
+trigger:
+  branches:
+    include:
+      - main
+
+pool: $(pool_name)
+
+variables:
+  - group: ServiceConnections
+  - group: ApplicationSecrets
+
+  - name: imageName
+    value: '<%= projectName %>'
+  - name: namespace
+    value: '<%= projectName %>'
+  - name: majorVersion
+    value: '1'
+  - name: minorVersion
+    value: '0'
+  - name: patchVersion
+    value: '0'
+
+  # SonarCloud — TODO confirm project key + organization with QA team
+  - name: sonar_projectkey
+    value: 'EWB_<%= className %>'
+  - name: sonar_projectname
+    value: '<%= className %>'
+  - name: sonar_organization
+    value: 'ewbcorp'
+
+  - name: non_prod_pool_name
+    value: 'Default'
+
+  - name: TRIVY_CACHE_DIR
+    value: $(Pipeline.Workspace)/.trivycache
+
+stages:
+  - stage: Checkstyle
+    displayName: Checkstyle Validation
+    jobs:
+      - job: Checkstyle
+        displayName: Checkstyle
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: DownloadSecureFile@1
+            name: settingsXml
+            inputs:
+              secureFile: settings.xml
+
+          - task: CopyFiles@2
+            displayName: 'Copy settings.xml'
+            inputs:
+              SourceFolder: '$(Agent.TempDirectory)'
+              Contents: settings.xml
+              TargetFolder: '$(System.DefaultWorkingDirectory)'
+              OverWrite: true
+
+          - task: Cache@2
+            displayName: 'Cache Maven dependencies'
+            inputs:
+              key: 'maven | "$(Agent.OS)" | pom.xml'
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(Pipeline.Workspace)/.m2/repository
+
+          - task: Maven@4
+            displayName: 'Run Checkstyle'
+            inputs:
+              mavenPomFile: 'pom.xml'
+              mavenOptions: '-Xmx3072m -Dmaven.repo.local=$(Pipeline.Workspace)/.m2/repository'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.21'
+              jdkArchitectureOption: 'x64'
+              goals: 'checkstyle:check -s $(System.DefaultWorkingDirectory)/settings.xml'
+
+  - stage: BuildAndScan
+    displayName: Build and SonarCloud Analysis
+    dependsOn: Checkstyle
+    condition: succeeded('Checkstyle')
+    jobs:
+      - job: BuildAndScan
+        displayName: Build and Scan
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: DownloadSecureFile@1
+            name: settingsXml
+            inputs:
+              secureFile: settings.xml
+
+          - task: CopyFiles@2
+            displayName: 'Copy settings.xml'
+            inputs:
+              SourceFolder: '$(Agent.TempDirectory)'
+              Contents: settings.xml
+              TargetFolder: '$(System.DefaultWorkingDirectory)'
+              OverWrite: true
+
+          - task: Cache@2
+            displayName: 'Cache Maven dependencies'
+            inputs:
+              key: 'maven | "$(Agent.OS)" | pom.xml'
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(Pipeline.Workspace)/.m2/repository
+
+          - bash: |
+              if [ "$(Build.SourceBranchName)" != "main" ]; then
+                echo "##vso[task.setvariable variable=SONAR_BRANCH_PROPS]sonar.branch.name=$(Build.SourceBranchName)"$'\n'"sonar.branch.target=main"
+              else
+                echo "##vso[task.setvariable variable=SONAR_BRANCH_PROPS]"
+              fi
+            displayName: 'Set SonarCloud Branch Properties'
+
+          - task: SonarCloudPrepare@2
+            inputs:
+              SonarCloud: 'sonarcloud'
+              organization: $(sonar_organization)
+              scannerMode: 'Other'
+              configMode: 'manual'
+              extraProperties: |
+                sonar.projectKey=$(sonar_projectkey)
+                sonar.projectName=$(sonar_projectname)
+                sonar.sources=src/main/java,src/main/resources,helm,Dockerfile,pom.xml
+                sonar.tests=src/test/java
+                sonar.java.source=21
+                sonar.java.binaries=target/classes
+                sonar.java.test.binaries=target/test-classes
+                sonar.exclusions=**/target/**,**/generated/**,**/.m2/**,**/logs/**,**/.git/**,**/*.class,**/.gradle/**,**/build/**,**/logback-spring.xml,**/helm/values/**,**/TEST-*.xml,**/scripts/**
+                sonar.coverage.exclusions=**/generated/**,**/test/**,**/target/**,**/*Test.java,**/*Tests.java,**/*IT.java,**/TestSecurityConfig.java,**/scripts/**
+                sonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+                sonar.junit.reportPaths=target/surefire-reports
+                $(SONAR_BRANCH_PROPS)
+
+          - task: Maven@4
+            displayName: 'Maven Build & Scan'
+            inputs:
+              mavenPomFile: 'pom.xml'
+              options: '-s $(System.DefaultWorkingDirectory)/settings.xml'
+              mavenOptions: '-Xmx3072m -Dmaven.repo.local=$(Pipeline.Workspace)/.m2/repository'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.21'
+              jdkArchitectureOption: 'x64'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              # Integration tests require Docker (Testcontainers) which agents may not allow.
+              # Run them locally with `mvnw verify`.
+              goals: 'clean jacoco:prepare-agent install jacoco:report sonar:sonar -Dspring.profiles.active=test -DskipITs -Dcheckstyle.skip=true'
+
+          - task: SonarCloudPublish@2
+            inputs:
+              pollingTimeoutSec: '300'
+
+          - publish: $(System.DefaultWorkingDirectory)/target
+            artifact: binaries-$(Build.BuildId)
+
+  - stage: GeneratePushImageDev
+    displayName: Generate Docker Image and Push (Development)
+    dependsOn: BuildAndScan
+    condition: succeeded('BuildAndScan')
+    jobs:
+      - job: Generate
+        displayName: Generate (Development)
+        pool:
+          name: $(non_prod_pool_name)
+          vmImage: ubuntu-latest
+        steps:
+          - task: DownloadSecureFile@1
+            name: settingsXml
+            inputs:
+              secureFile: settings.xml
+
+          - task: CopyFiles@2
+            displayName: 'Copy settings.xml'
+            inputs:
+              SourceFolder: '$(Agent.TempDirectory)'
+              Contents: settings.xml
+              TargetFolder: '$(System.DefaultWorkingDirectory)'
+              OverWrite: true
+
+          - task: Docker@2
+            displayName: Build Docker Image
+            inputs:
+              command: build
+              repository: $(imageName)
+              dockerfile: ./Dockerfile
+              buildContext: $(System.DefaultWorkingDirectory)
+              containerRegistry: $(docker_registry_servcon_dev)
+              tags: |
+                $(majorVersion).$(minorVersion).$(patchVersion)-build.$(Build.BuildId)
+                latest
+
+          - bash: |
+              REGISTRY="acrdxpdev.azurecr.io"
+              IMAGE_TAG="$(majorVersion).$(minorVersion).$(patchVersion)-build.$(Build.BuildId)"
+              docker tag $REGISTRY/$(imageName):$IMAGE_TAG $(imageName):$IMAGE_TAG
+            displayName: 'Tag image for local scan'
+
+          - bash: mkdir -p $(TRIVY_CACHE_DIR)
+            displayName: 'Create Trivy Cache Directory'
+
+          - task: Cache@2
+            displayName: 'Cache Trivy Vulnerability DB'
+            inputs:
+              key: 'trivy-db | "$(Agent.OS)"'
+              path: $(TRIVY_CACHE_DIR)
+              restoreKeys: |
+                trivy-db
+            continueOnError: true
+
+          - task: trivy@2
+            displayName: 'Run Trivy Scan'
+            inputs:
+              method: 'docker'
+              version: '0.55.2'
+              type: 'image'
+              target: '$(imageName):$(majorVersion).$(minorVersion).$(patchVersion)-build.$(Build.BuildId)'
+              scanners: 'misconfig, secret, vuln'
+              severities: 'UNKNOWN, LOW, MEDIUM, HIGH, CRITICAL'
+              failOnSeverityThreshold: 'HIGH'
+              ignoreUnfixed: true
+              reports: 'table'
+              timeout: '20m'
+            env:
+              TRIVY_CACHE_DIR: $(TRIVY_CACHE_DIR)
+
+          - task: Docker@2
+            displayName: Push Docker Image
+            inputs:
+              command: push
+              repository: $(imageName)
+              containerRegistry: $(docker_registry_servcon_dev)
+              tags: |
+                $(majorVersion).$(minorVersion).$(patchVersion)-build.$(Build.BuildId)
+                latest
+
+  - stage: DeployDev
+    displayName: Deploy to Kubernetes (Development)
+    dependsOn: GeneratePushImageDev
+    condition: succeeded('GeneratePushImageDev')
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy (Development)
+        pool:
+          name: $(non_prod_pool_name)
+          vmImage: ubuntu-latest
+        environment: <%= projectName %>-development
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: ReplaceTokens@3
+                  displayName: 'Replace tokens'
+                  inputs:
+                    targetFiles: '$(System.DefaultWorkingDirectory)/helm/values/development/app.yaml'
+                    encoding: 'auto'
+                    tokenRegex: '\\#\\{(.+?)\\}\\#'
+                    tokenPrefix: '#{'
+                    tokenSuffix: '}#'
+
+                - task: HelmDeploy@0
+                  displayName: Deploy Helm Chart
+                  inputs:
+                    connectionType: 'Kubernetes Service Connection'
+                    kubernetesServiceEndpoint: $(kubernetes_servcon_dev)
+                    namespace: $(namespace)
+                    chartType: 'FilePath'
+                    chartPath: './helm'
+                    releaseName: '<%= projectName %>'
+                    command: 'upgrade'
+                    install: true
+                    arguments: >-
+                      --set image.tag="$(majorVersion).$(minorVersion).$(patchVersion)-build.$(Build.BuildId)"
+                      --values ./helm/values/development/specs.yaml
+                      --values ./helm/values/development/app.yaml
+                      --history-max=3
+                      --timeout=5m0s
+                      --wait
+                      --atomic

@@ -1,0 +1,62 @@
+# Kubernetes specs — production environment
+
+namespace: <%= projectName %>
+
+springProfile: prod
+replicaCount: 2
+
+image:
+  registry: acrdxpproduction.azurecr.io
+  repository: <%= projectName %>
+  tag: production
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+readinessProbe:
+  path: /health/readiness
+  port: 8181
+  initialDelaySeconds: 10
+  periodSeconds: 5
+
+livenessProbe:
+  path: /health/liveness
+  port: 8181
+  initialDelaySeconds: 15
+  periodSeconds: 10
+
+startupProbe:
+  path: /health
+  port: 8181
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 30
+
+hpa:
+  enable: true
+  cpuUtilization: false
+  memoryAverageUtilization: 80
+  cpuAverageUtilization: 80
+  minReplicas: 2
+  maxReplicas: 3
+
+service:
+  type: ClusterIP
+  port: 8181
+
+ingress:
+  class: azure/application-gateway
+  usePrivateIP: "true"
+  overrideFrontendPort: "6106"
+  healthProbePath: "/health"
+  healthProbeStatusCodes: "200-399"
+  requestTimeout: "30"
+  host: <%= projectName %>.local
+  path: /
+  pathType: Prefix
