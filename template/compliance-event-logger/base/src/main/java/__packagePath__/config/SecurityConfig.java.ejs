@@ -15,7 +15,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * without standing up an OAuth2 issuer.
  */
 @Configuration
-@Profile("!test")
+@Profile("!test & !local")
 public class SecurityConfig {
 
     @Bean
