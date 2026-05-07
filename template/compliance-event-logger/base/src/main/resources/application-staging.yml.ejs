@@ -1,0 +1,11 @@
+# Staging environment overrides — activated by `springProfile: staging` in helm/values/staging/specs.yaml
+spring:
+  datasource:
+    url: jdbc:sqlserver://${DB_SERVER:staging-sql.eastwest.local}:1433;databaseName=AFASA;encrypt=true;trustServerCertificate=true
+
+logging:
+  level:
+    <%= packageName %>: INFO
+
+eapi:
+  base-url: ${EAPI_URL:https://staging-eapi.eastwest.local/api}

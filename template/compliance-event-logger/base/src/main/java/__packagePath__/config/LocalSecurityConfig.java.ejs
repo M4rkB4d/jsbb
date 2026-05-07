@@ -9,7 +9,7 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Loosened security used only under the "local" profile — for hitting endpoints
  * with curl from the dev box without wrangling auth headers. The production
- * SecurityConfig stays in force for any other profile (dev / uat / prod).
+ * SecurityConfig stays in force for any other profile (dev / staging / prod).
  *
  * Run with: --spring.profiles.active=local
  */

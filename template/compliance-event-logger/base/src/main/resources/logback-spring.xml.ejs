@@ -12,8 +12,8 @@
         </root>
     </springProfile>
 
-    <!-- Structured JSON for dev/uat/prod (consumed by Application Insights / ELK) -->
-    <springProfile name="dev | uat | prod">
+    <!-- Structured JSON for dev/staging/prod (consumed by Application Insights / ELK) -->
+    <springProfile name="dev | staging | prod">
         <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LogstashEncoder">
                 <includeContext>false</includeContext>

@@ -4,7 +4,9 @@ target/
 *.war
 
 # IntelliJ / Eclipse / VS Code
-.idea/
+# Ignore most of .idea/ but keep shared run configurations under version control.
+.idea/*
+!.idea/runConfigurations/
 *.iml
 .vscode/
 .classpath
