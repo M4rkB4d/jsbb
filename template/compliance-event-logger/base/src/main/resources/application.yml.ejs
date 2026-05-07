@@ -5,6 +5,15 @@ spring:
   application:
     name: <%= projectName %>
 
+  # Optional per-developer overrides — each developer creates their own
+  # `developer.properties` (gitignored) at the project root with their preferred
+  # profile + any local secrets. The `optional:` prefix means the app boots
+  # cleanly when the file is absent (e.g. inside the production Docker image).
+  # Pattern documented at:
+  #   https://spring.io/blog/2020/08/14/config-file-processing-in-spring-boot-2-4
+  config:
+    import: optional:file:./developer.properties
+
   # Java 21 virtual threads — handle every request on a virtual thread.
   threads:
     virtual:

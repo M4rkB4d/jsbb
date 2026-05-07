@@ -1,0 +1,25 @@
+# Per-developer local overrides. Copy this file to `developer.properties`
+# (which is gitignored) and edit for your local setup.
+#
+# Loaded by `spring.config.import=optional:file:./developer.properties` in
+# src/main/resources/application.yml. Ignored in production — the file is
+# never copied into the Docker image.
+#
+# Pattern documented at:
+#   https://spring.io/blog/2020/08/14/config-file-processing-in-spring-boot-2-4
+
+# ---------- Daily local dev (default) ----------
+spring.profiles.active=local
+
+# ---------- Run locally against the dev cluster ----------
+# Comment out the line above and uncomment below. Requires VPN / port-forward
+# to the dev cluster.
+#
+# spring.profiles.active=dev
+# OAUTH2_ISSUER_URI=https://<your-real-dev-issuer>
+# DB_PASSWORD=<your dev DB password>
+
+# ---------- Run locally against the staging cluster ----------
+# spring.profiles.active=staging
+# OAUTH2_ISSUER_URI=https://<your-real-staging-issuer>
+# DB_PASSWORD=<your staging DB password>

@@ -4,14 +4,15 @@ target/
 *.war
 
 # IntelliJ / Eclipse / VS Code
-# Ignore most of .idea/ but keep shared run configurations under version control.
-.idea/*
-!.idea/runConfigurations/
+.idea/
 *.iml
 .vscode/
 .classpath
 .project
 .settings/
+
+# Per-developer Spring config overrides (loaded via spring.config.import in application.yml)
+developer.properties
 
 # OS
 .DS_Store
