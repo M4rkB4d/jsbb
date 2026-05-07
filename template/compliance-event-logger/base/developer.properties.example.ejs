@@ -8,36 +8,52 @@
 # Pattern documented at:
 #   https://spring.io/blog/2020/08/14/config-file-processing-in-spring-boot-2-4
 #
+# =============================================================================
 # Variables you can set here are anything referenced as ${VAR} in any of the
-# application*.yml files. Common ones:
+# application*.yml files.
+# =============================================================================
 #
-#   SPRING_PROFILES_ACTIVE   which profile to activate
-#   OAUTH2_ISSUER_URI        Azure AD issuer for OAuth2 (required in
-#                            dev/staging/prod profiles, no default)
-#   DB_USERNAME              SQL Server login (defaults to `sa`)
-#   DB_PASSWORD              SQL Server password
-#   DB_SERVER                SQL Server hostname
-#   EAPI_URL                 EAPI base URL
+# Profile / identity
+#   SPRING_PROFILES_ACTIVE        which profile to activate
+#
+# OAuth2 / DB / EAPI (per-environment infrastructure)
+#   OAUTH2_ISSUER_URI             OAuth2 issuer (required in dev/staging/prod)
+#   DB_USERNAME / DB_PASSWORD     SQL Server credentials
+#   DB_SERVER                     SQL Server hostname
+#   EAPI_URL                      EAPI base URL
+#
+# EAPI client tuning
+#   EAPI_CONNECT_TIMEOUT          TCP connect (default 5s)
+#   EAPI_READ_TIMEOUT             HTTP read (default 30s)
+#   EAPI_RETRY_MAX_ATTEMPTS       @Retry attempts (default 3)
+#   EAPI_RETRY_WAIT               wait between retries (default 5s)
+#   EAPI_CB_WINDOW_SIZE           CB sliding window (default 20)
+#   EAPI_CB_FAILURE_THRESHOLD     CB trip percent (default 50)
+#   EAPI_CB_OPEN_WAIT             how long CB stays open (default 30s)
+#   EAPI_TIMELIMIT                @TimeLimiter (default 30s)
+#
+# Connection pool
+#   HIKARI_MAX_POOL               max DB connections (default 20, prod 50)
+#   HIKARI_MIN_IDLE               min idle (default 5, prod 10)
 
 
 # =============================================================================
-# Daily local dev (default — works out of the box, no other vars needed)
+# Daily local dev (default)
 # =============================================================================
 spring.profiles.active=local
 
 
 # =============================================================================
-# Run locally against the dev cluster
-# Requires VPN / port-forward access to the dev cluster's SQL + EAPI.
+# Run locally against the dev cluster (requires VPN / port-forward)
 # =============================================================================
 # spring.profiles.active=dev
 #
-# Required (no defaults — startup will fail without these under dev profile):
+# Required:
 # OAUTH2_ISSUER_URI=https://<your-real-dev-issuer>
 # DB_PASSWORD=<your dev DB password>
 # DB_USERNAME=<your-app>_dev_user
 #
-# Optional (helpful defaults already in application-dev.yml):
+# Optional:
 # DB_SERVER=dev-sql.eastwest.local
 # EAPI_URL=https://dev-eapi.eastwest.local/api
 
@@ -55,3 +71,18 @@ spring.profiles.active=local
 # Optional:
 # DB_SERVER=staging-sql.eastwest.local
 # EAPI_URL=https://staging-eapi.eastwest.local/api
+
+
+# =============================================================================
+# EAPI / pool tuning (rarely needed locally)
+# =============================================================================
+# EAPI_CONNECT_TIMEOUT=5s
+# EAPI_READ_TIMEOUT=30s
+# EAPI_RETRY_MAX_ATTEMPTS=3
+# EAPI_RETRY_WAIT=5s
+# EAPI_CB_WINDOW_SIZE=20
+# EAPI_CB_FAILURE_THRESHOLD=50
+# EAPI_CB_OPEN_WAIT=30s
+# EAPI_TIMELIMIT=30s
+# HIKARI_MAX_POOL=20
+# HIKARI_MIN_IDLE=5

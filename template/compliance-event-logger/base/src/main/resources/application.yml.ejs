@@ -35,8 +35,8 @@ spring:
     password: ${DB_PASSWORD:}
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: ${HIKARI_MAX_POOL:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
       connection-timeout: 10000
       validation-timeout: 5000
 
@@ -64,28 +64,28 @@ management:
 # EAPI integration (override per environment)
 eapi:
   base-url: <%= eapiBaseUrl %>
-  connect-timeout: 5s
-  read-timeout: 30s
+  connect-timeout: ${EAPI_CONNECT_TIMEOUT:5s}
+  read-timeout: ${EAPI_READ_TIMEOUT:30s}
 
 # Resilience4j — declarative policies referenced by @Retry / @CircuitBreaker / @TimeLimiter
 resilience4j:
   retry:
     instances:
       eapi-tpp-rule:
-        max-attempts: 3
-        wait-duration: 5s
+        max-attempts: ${EAPI_RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${EAPI_RETRY_WAIT:5s}
   circuitbreaker:
     instances:
       eapi-default:
         sliding-window-type: COUNT_BASED
-        sliding-window-size: 20
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 30s
+        sliding-window-size: ${EAPI_CB_WINDOW_SIZE:20}
+        failure-rate-threshold: ${EAPI_CB_FAILURE_THRESHOLD:50}
+        wait-duration-in-open-state: ${EAPI_CB_OPEN_WAIT:30s}
         permitted-number-of-calls-in-half-open-state: 5
   timelimiter:
     instances:
       eapi-default:
-        timeout-duration: 30s
+        timeout-duration: ${EAPI_TIMELIMIT:30s}
 
 # Springdoc / OpenAPI
 springdoc:

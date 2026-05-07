@@ -3,8 +3,8 @@ spring:
   datasource:
     url: jdbc:sqlserver://${DB_SERVER}:1433;databaseName=AFASA;encrypt=true
     hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
+      maximum-pool-size: ${HIKARI_MAX_POOL:50}
+      minimum-idle: ${HIKARI_MIN_IDLE:10}
 
   # OAuth2 issuer URI is mandatory in prod — no default. App refuses to start without it.
   security:
