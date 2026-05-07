@@ -1,25 +1,57 @@
 # Per-developer local overrides. Copy this file to `developer.properties`
-# (which is gitignored) and edit for your local setup.
+# (gitignored) and edit for your local setup.
 #
 # Loaded by `spring.config.import=optional:file:./developer.properties` in
-# src/main/resources/application.yml. Ignored in production — the file is
-# never copied into the Docker image.
+# src/main/resources/application.yml. Never enters the production Docker
+# image (gitignored, plus only target/ gets COPYed in).
 #
 # Pattern documented at:
 #   https://spring.io/blog/2020/08/14/config-file-processing-in-spring-boot-2-4
+#
+# Variables you can set here are anything referenced as ${VAR} in any of the
+# application*.yml files. Common ones:
+#
+#   SPRING_PROFILES_ACTIVE   which profile to activate
+#   OAUTH2_ISSUER_URI        Azure AD issuer for OAuth2 (required in
+#                            dev/staging/prod profiles, no default)
+#   DB_USERNAME              SQL Server login (defaults to `sa`)
+#   DB_PASSWORD              SQL Server password
+#   DB_SERVER                SQL Server hostname
+#   EAPI_URL                 EAPI base URL
 
-# ---------- Daily local dev (default) ----------
+
+# =============================================================================
+# Daily local dev (default — works out of the box, no other vars needed)
+# =============================================================================
 spring.profiles.active=local
 
-# ---------- Run locally against the dev cluster ----------
-# Comment out the line above and uncomment below. Requires VPN / port-forward
-# to the dev cluster.
-#
+
+# =============================================================================
+# Run locally against the dev cluster
+# Requires VPN / port-forward access to the dev cluster's SQL + EAPI.
+# =============================================================================
 # spring.profiles.active=dev
+#
+# Required (no defaults — startup will fail without these under dev profile):
 # OAUTH2_ISSUER_URI=https://<your-real-dev-issuer>
 # DB_PASSWORD=<your dev DB password>
+# DB_USERNAME=<your-app>_dev_user
+#
+# Optional (helpful defaults already in application-dev.yml):
+# DB_SERVER=dev-sql.eastwest.local
+# EAPI_URL=https://dev-eapi.eastwest.local/api
 
-# ---------- Run locally against the staging cluster ----------
+
+# =============================================================================
+# Run locally against the staging cluster
+# =============================================================================
 # spring.profiles.active=staging
+#
+# Required:
 # OAUTH2_ISSUER_URI=https://<your-real-staging-issuer>
 # DB_PASSWORD=<your staging DB password>
+# DB_USERNAME=<your-app>_stg_user
+#
+# Optional:
+# DB_SERVER=staging-sql.eastwest.local
+# EAPI_URL=https://staging-eapi.eastwest.local/api
