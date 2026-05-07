@@ -1,7 +1,7 @@
 # Staging environment overrides — activated by `springProfile: staging` in helm/values/staging/specs.yaml
 spring:
   datasource:
-    url: jdbc:sqlserver://${DB_SERVER:staging-sql.eastwest.local}:1433;databaseName=AFASA;encrypt=true;trustServerCertificate=true
+    url: jdbc:sqlserver://${DB_SERVER:sql-dxp-staging-apse-001.database.windows.net}:1433;databaseName=AFASA;encrypt=true;trustServerCertificate=true
 
 logging:
   level:

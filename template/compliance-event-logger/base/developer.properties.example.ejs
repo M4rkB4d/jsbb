@@ -18,8 +18,13 @@
 #
 # OAuth2 / DB / EAPI (per-environment infrastructure)
 #   OAUTH2_ISSUER_URI             OAuth2 issuer (required in dev/staging/prod)
-#   DB_USERNAME / DB_PASSWORD     SQL Server credentials
-#   DB_SERVER                     SQL Server hostname
+#   DB_USERNAME                   SQL Server login. Local uses `sa`; cluster
+#                                 deploys use a per-app SQL login set in helm
+#                                 values (e.g. `<app>_dev_user`).
+#   DB_PASSWORD                   SQL Server password
+#   DB_SERVER                     SQL Server hostname. Defaults in dev/staging
+#                                 yml use the bank's Azure SQL pattern
+#                                 `sql-dxp-{env}-apse-001.database.windows.net`.
 #   EAPI_URL                      EAPI base URL
 #
 # EAPI client tuning
@@ -54,7 +59,7 @@ spring.profiles.active=local
 # DB_USERNAME=<your-app>_dev_user
 #
 # Optional:
-# DB_SERVER=dev-sql.eastwest.local
+# DB_SERVER=sql-dxp-dev-apse-001.database.windows.net
 # EAPI_URL=https://dev-eapi.eastwest.local/api
 
 
@@ -69,8 +74,8 @@ spring.profiles.active=local
 # DB_USERNAME=<your-app>_stg_user
 #
 # Optional:
-# DB_SERVER=staging-sql.eastwest.local
-# EAPI_URL=https://staging-eapi.eastwest.local/api
+# DB_SERVER=sql-dxp-staging-apse-001.database.windows.net
+# EAPI_URL=https://eapi-stg.eastwest.com.ph/api
 
 
 # =============================================================================
